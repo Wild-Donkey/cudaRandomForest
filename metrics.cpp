@@ -3,6 +3,7 @@
 #include <ctime>
 #include <cstring>
 #include <algorithm>
+#include "metrics.hpp"
 
 const unsigned dataSize = 1000000;
 const unsigned dataDim = 10;
