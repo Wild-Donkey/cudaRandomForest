@@ -12,6 +12,6 @@ struct metaData {
   vector<featureMeta>
 }
 
-void read_config() {
+void read_config(metaData*& hee) {
 
 }
