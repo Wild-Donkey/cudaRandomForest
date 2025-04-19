@@ -4,7 +4,6 @@
 #include <cstring>
 #include <algorithm>
 #include "metrics.hpp"
-#include "dataReader.hpp"
 
 void computeHistogram(unsigned* label, unsigned*& hist, unsigned sample_count, unsigned class_count) {
   hist = (unsigned*)malloc(class_count * sizeof(unsigned));
@@ -83,7 +82,7 @@ std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label,
     for (unsigned j = 0, J = i; j < sample_count; ++j, J += dataDim)
       featureColumn[j] = feature[J];
     std::pair<float, float> IGp = informationGain(featureColumn, label, sample_count, class_count);
-    printf("Feature %u IG %f Split %f\n", i, IGp.first, IGp.second);
+    // printf("Feature %u IG %f Split %f\n", i, IGp.first, IGp.second);
     if (IGp.first > maxIG) {
       maxIG = IGp.first;
       splitPoint = IGp.second;
@@ -93,21 +92,3 @@ std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label,
   return { bestFeature, splitPoint };
 }
 
-signed main() {
-  metaData* metaData;
-  read_config(metaData, "data/adult.myc");
-  
-  float* h_feature = (float*)malloc(metaData->sample_count * metaData->feature_count * sizeof(float));
-  unsigned* h_label = (unsigned*)malloc(metaData->sample_count * sizeof(unsigned));
-  getfeat_and_label(h_feature, h_label, *metaData, read_csv("data/adult.csv"));
-  // 计算熵
-  unsigned long long TimeBegin = clock(), TimeEnd;
-  std::pair<unsigned, float> BestFeature = findBestFeature(h_feature, h_label,
-    metaData->sample_count, metaData->feature_count,
-    metaData->features_meta[metaData->feature_count].stringSet.size());
-  TimeEnd = clock();
-  printf("BestFeature: %u Split %f Time %f ms\n", BestFeature.first, BestFeature.second, (TimeEnd - TimeBegin) / 1000.0f);
-
-
-  return 0;
-}
