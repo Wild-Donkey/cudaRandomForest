@@ -4,10 +4,7 @@
 #include <cstring>
 #include <algorithm>
 #include "metrics.hpp"
-
-const unsigned dataSize = 1000000;
-const unsigned dataDim = 10;
-const unsigned classCount = 10;
+#include "dataReader.hpp"
 
 void computeHistogram(unsigned* label, unsigned*& hist, unsigned sample_count, unsigned class_count) {
   hist = (unsigned*)malloc(class_count * sizeof(unsigned));
@@ -52,17 +49,25 @@ std::pair<float, float> informationGain(float* feature, unsigned* label, unsigne
   entropy_y = entropy_l + entropy_r;
   splitPoint = f_l[0].first - 0.001f;
 
+  // unsigned LeftCnt = 0, RightCnt = sample_count;
+  // unsigned BL = 0, BR = RightCnt;
+
   for (unsigned i = 0; i < sample_count - 1; ++i) {
     histl[f_l[i].second]++;
     histr[f_l[i].second]--;
+
+    // ++LeftCnt, --RightCnt;
+
     if (f_l[i].first == f_l[i + 1].first) continue;
     entropy_l = ((i + 1.0f) / sample_count) * computeEntropyWithHist(histl, i + 1, class_count);
     entropy_r = ((sample_count - i - 1.0f) / sample_count) * computeEntropyWithHist(histr, sample_count - i - 1, class_count);
     if (entropy_l + entropy_r < entropy_y) {
       entropy_y = entropy_l + entropy_r;
       splitPoint = (f_l[i].first + f_l[i + 1].first) / 2.0f;
+      // BL = LeftCnt, BR = RightCnt;
     }
   }
+  // printf("Best L %u R %u\n", BL, BR);
   return { entropy - entropy_y, splitPoint };
 }
 std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label,
@@ -78,32 +83,30 @@ std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label,
     for (unsigned j = 0, J = i; j < sample_count; ++j, J += dataDim)
       featureColumn[j] = feature[J];
     std::pair<float, float> IGp = informationGain(featureColumn, label, sample_count, class_count);
+    printf("Feature %u IG %f Split %f\n", i, IGp.first, IGp.second);
     if (IGp.first > maxIG) {
       maxIG = IGp.first;
       splitPoint = IGp.second;
       bestFeature = i;
     }
   }
-  return { maxIG, splitPoint };
+  return { bestFeature, splitPoint };
 }
 
 signed main() {
-  float* h_feature = (float*)malloc(dataSize * dataDim * sizeof(float));
-  unsigned* h_label = (unsigned*)malloc(dataSize * sizeof(unsigned));
-
-  printf("Done");
-  // 生成随机数据 (0-1之间)
-  for (unsigned i = 0, I = 0; i < dataSize; ++i, I += dataDim)
-    for (unsigned j = 0, J = I; j < dataDim; ++j, ++J)
-      h_feature[J] = (float)rand() / RAND_MAX;
-  for (unsigned i = 0; i < dataSize; i++) h_label[i] = rand() % classCount;
-
+  metaData* metaData;
+  read_config(metaData, "data/adult.myc");
+  
+  float* h_feature = (float*)malloc(metaData->sample_count * metaData->feature_count * sizeof(float));
+  unsigned* h_label = (unsigned*)malloc(metaData->sample_count * sizeof(unsigned));
+  getfeat_and_label(h_feature, h_label, *metaData, read_csv("data/adult.csv"));
   // 计算熵
   unsigned long long TimeBegin = clock(), TimeEnd;
   std::pair<unsigned, float> BestFeature = findBestFeature(h_feature, h_label,
-    dataSize, dataDim, classCount);
+    metaData->sample_count, metaData->feature_count,
+    metaData->features_meta[metaData->feature_count].stringSet.size());
   TimeEnd = clock();
-  printf("BestFeature: %u Split %f Time %llu us\n", BestFeature.first, BestFeature.second, TimeEnd - TimeBegin);
+  printf("BestFeature: %u Split %f Time %f ms\n", BestFeature.first, BestFeature.second, (TimeEnd - TimeBegin) / 1000.0f);
 
 
   return 0;
