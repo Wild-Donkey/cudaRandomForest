@@ -8,56 +8,57 @@
 #include "bagging.hpp"
 
 void randomSampling(void* src_feature, void* src_label, void**& dst_feature, void**& dst_label,
-  unsigned src_size, unsigned src_dim, unsigned dst_size, unsigned dst_dim, unsigned dst_count,
-  unsigned feature_bytes, unsigned label_bytes) {
+  unsigned**& ori_feature_index, unsigned src_size, unsigned src_dim, unsigned dst_size,
+  unsigned dst_dim, unsigned dst_count, unsigned feature_bytes, unsigned label_bytes) {
   srand(time(NULL));
+  ori_feature_index = (unsigned**)malloc(dst_dim * sizeof(unsigned*));
   dst_feature = (void**)malloc(dst_count * sizeof(void*));
   dst_label = (void**)malloc(dst_count * sizeof(void*));
   unsigned* indexx = (unsigned*)malloc(dst_size * sizeof(int));
-  unsigned* indexy = (unsigned*)malloc(dst_dim * sizeof(int));
   for (unsigned i = 0; i < dst_count; ++i) {
+    ori_feature_index[i] = (unsigned*)malloc(dst_dim * sizeof(unsigned));
     dst_feature[i] = malloc(dst_size * dst_dim * feature_bytes);
     dst_label[i] = malloc(dst_size * label_bytes);
     for (unsigned j = 0; j < dst_size; ++j) indexx[j] = rand() % src_size;
-    for (unsigned j = 0; j < dst_dim; ++j) indexy[j] = rand() % src_dim;
+    for (unsigned j = 0; j < dst_dim; ++j) ori_feature_index[i][j] = rand() % src_dim;
     for (unsigned j = 0, J = 0; j < dst_size; ++j, J += dst_dim) {
       memcpy((char*)dst_label[i] + j * label_bytes,
         (char*)src_label + indexx[j] * label_bytes, label_bytes);
       indexx[j] *= src_dim;
       for (unsigned k = 0, K = J; k < dst_dim; ++k, ++K) {
         memcpy((char*)dst_feature[i] + K * feature_bytes,
-          (char*)src_feature + (indexx[j] + indexy[k]) * feature_bytes,
+          (char*)src_feature + (indexx[j] + ori_feature_index[i][k]) * feature_bytes,
           feature_bytes);
       }
     }
   }
   free(indexx);
-  free(indexy);
 }
 
 void randomSampling4Bytes(void* src_feature, void* src_label, void**& dst_feature, void**& dst_label,
-  unsigned src_size, unsigned src_dim, unsigned dst_size, unsigned dst_dim, unsigned dst_count) {
+  unsigned**& ori_feature_index, unsigned src_size, unsigned src_dim, unsigned dst_size,
+  unsigned dst_dim, unsigned dst_count) {
   srand(time(NULL));
+  ori_feature_index = (unsigned**)malloc(dst_dim * sizeof(unsigned*));
   dst_feature = (void**)malloc(dst_count * sizeof(void*));
   dst_label = (void**)malloc(dst_count * sizeof(void*));
   unsigned* indexx = (unsigned*)malloc(dst_size * sizeof(int));
-  unsigned* indexy = (unsigned*)malloc(dst_dim * sizeof(int));
   for (unsigned i = 0; i < dst_count; ++i) {
+    ori_feature_index[i] = (unsigned*)malloc(dst_dim * sizeof(unsigned));
     dst_feature[i] = malloc(dst_size * dst_dim * 4);
     dst_label[i] = malloc(dst_size * 4);
     for (unsigned j = 0; j < dst_size; ++j) indexx[j] = rand() % src_size;
-    for (unsigned j = 0; j < dst_dim; ++j) indexy[j] = rand() % src_dim;
+    for (unsigned j = 0; j < dst_dim; ++j) ori_feature_index[i][j] = rand() % src_dim;
     for (unsigned j = 0, J = 0; j < dst_size; ++j, J += dst_dim) {
       ((uint32_t*)dst_label[i])[j] = ((uint32_t*)src_label)[indexx[j]];
       indexx[j] *= src_dim;
       for (unsigned k = 0, K = J; k < dst_dim; ++k, ++K)
-        ((uint32_t*)dst_feature[i])[K] = ((uint32_t*)src_feature)[indexx[j] + indexy[k]];
+        ((uint32_t*)dst_feature[i])[K] = ((uint32_t*)src_feature)[indexx[j] + ori_feature_index[i][k]];
     }
   }
   free(indexx);
-  free(indexy);
 }
-
+/*
 signed main(int argc, char* argv[]) {
   unsigned src_size = 100000;
   unsigned src_dim = 100;
@@ -78,16 +79,17 @@ signed main(int argc, char* argv[]) {
   }
   void** dst_feature;
   void** dst_label;
+  unsigned** ori_feature_index;
 
   unsigned long long TimeBegin = clock(), TimeEnd;
   randomSampling(src_feature, src_label, dst_feature, dst_label,
-    src_size, src_dim, dst_size, dst_dim,
+    ori_feature_index, src_size, src_dim, dst_size, dst_dim,
     dst_count, feature_bytes, label_bytes);
   TimeEnd = clock();
   printf("Time %llu us\n", TimeEnd - TimeBegin);
   TimeBegin = clock();
   randomSampling4Bytes(src_feature, src_label, dst_feature, dst_label,
-    src_size, src_dim, dst_size, dst_dim, dst_count);
+    ori_feature_index, src_size, src_dim, dst_size, dst_dim, dst_count);
   TimeEnd = clock();
   printf("Time %llu us\n", TimeEnd - TimeBegin);
 
@@ -105,3 +107,4 @@ signed main(int argc, char* argv[]) {
 
   return 0;
 }
+  */

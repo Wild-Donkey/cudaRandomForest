@@ -1,3 +1,5 @@
+#pragma once
+
 void computeHistogram(unsigned* label, unsigned*& hist, unsigned sample_count, unsigned class_count);
 float computeEntropyWithHist(unsigned* hist, unsigned sample_count, unsigned class_count);
 float computeEntropy(unsigned* label, unsigned sample_count, unsigned class_count);

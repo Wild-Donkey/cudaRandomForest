@@ -1,21 +1,26 @@
 #include "decisiontreeClassifier.hpp"
 #include "metrics.hpp" 
-#include "dataReader.hpp"
+// #include "dataReader.hpp"
+
 #include <stdio.h>
 #include <malloc.h>
 #include <cstring>
 
-classifierNode::classifierNode() {left = right = NULL;}
+classifierNode::classifierNode() { left = right = NULL; }
 classifierNode::classifierNode(float* feature, unsigned* label, unsigned sample_count,
   unsigned sample_dim, unsigned class_count, unsigned min_samples_split) {
   left = right = NULL;
-  this->fit(feature, label, sample_count, sample_dim, class_count, min_samples_split);
+  fit(feature, label, sample_count, sample_dim, class_count, min_samples_split);
+}
+classifierNode::classifierNode(float* feature, unsigned* label, unsigned* ori_feature_index,
+  unsigned sample_count, unsigned sample_dim, unsigned class_count, unsigned min_samples_split) {
+  left = right = NULL;
+  fit(feature, label, ori_feature_index, sample_count, sample_dim, class_count, min_samples_split);
 }
 classifierNode::~classifierNode() {
-  if(left) delete(left), left = NULL;  
-  if(right) delete(right), right = NULL;
+  if (left) delete(left), left = NULL;
+  if (right) delete(right), right = NULL;
 }
-
 void classifierNode::fit(float* feature, unsigned* label, unsigned sample_count,
   unsigned sample_dim, unsigned class_count, unsigned min_samples_split) {
   if (sample_count < min_samples_split) {
@@ -61,32 +66,44 @@ void classifierNode::fit(float* feature, unsigned* label, unsigned sample_count,
   right->fit(leftFeature, leftLabel, leftCount, sample_dim, class_count, min_samples_split);
 }
 
+void classifierNode::fit(float* feature, unsigned* label, unsigned* ori_feature_index,
+  unsigned sample_count, unsigned sample_dim, unsigned class_count, unsigned min_samples_split) {
+  fit(feature, label, sample_count, sample_dim, class_count, min_samples_split);
+  best_feature = ori_feature_index[best_feature];
+}
+
 unsigned classifierNode::predictOne(float* feature) {
-  // std::cout << "Cur " << this << "LR " << left << right << " feat " << feature << std::endl;
-  // printf("Size %u\n", sample_count);
-  // printf("best %u Split %f, my %f, vote %u\n", best_feature, splitPoint, feature[best_feature], vote_class);
-  if(!left) return vote_class;
-  if(feature[best_feature] <= splitPoint) {
+  if (!left) return vote_class;
+  if (feature[best_feature] <= splitPoint) {
     return left->predictOne(feature);
   } else return right->predictOne(feature);
 }
 
 
-
-decisionTreeClassifier::decisionTreeClassifier() { root = NULL;}
+decisionTreeClassifier::decisionTreeClassifier() { root = NULL; }
 decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count, unsigned class_count, unsigned min_samples_split) :
-sample_count(sample_count), feature_count(feature_count), class_count(class_count), min_samples_split(min_samples_split){
+  sample_count(sample_count), feature_count(feature_count), class_count(class_count), min_samples_split(min_samples_split) {
   root = NULL;
 }
-decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count, unsigned class_count, 
+decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count, unsigned class_count,
   unsigned min_samples_split, float* feature, unsigned* label) :
-sample_count(sample_count), feature_count(feature_count), class_count(class_count), min_samples_split(min_samples_split) {
+  sample_count(sample_count), feature_count(feature_count), class_count(class_count), min_samples_split(min_samples_split) {
+  fit(feature, label);
+}
+decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count, unsigned class_count,
+  unsigned min_samples_split, float* feature, unsigned* label, unsigned* ori_feature_index) :
+  sample_count(sample_count), feature_count(feature_count), class_count(class_count),
+  min_samples_split(min_samples_split), ori_feature_index(ori_feature_index) {
   fit(feature, label);
 }
 decisionTreeClassifier::~decisionTreeClassifier() {
   if (root) {
     delete root;
     root = NULL;
+  }
+  if (ori_feature_index) {
+    free(ori_feature_index);
+    ori_feature_index = NULL;
   }
 }
 void decisionTreeClassifier::Print() {
@@ -95,34 +112,36 @@ void decisionTreeClassifier::Print() {
 }
 void decisionTreeClassifier::fit(float* feature, unsigned* label) {
   root = new(classifierNode);
-  root->fit(feature, label, sample_count, feature_count, class_count, min_samples_split);
+  if (ori_feature_index == NULL)
+    root->fit(feature, label, sample_count, feature_count, class_count, min_samples_split);
+  else
+    root->fit(feature, label, ori_feature_index, sample_count, feature_count, class_count, min_samples_split);
 }
-void decisionTreeClassifier::predict(float* feature, unsigned testSize, unsigned*& p_label) {
-  p_label = (unsigned*)malloc(testSize * sizeof(unsigned));
+void decisionTreeClassifier::predict(float* feature, unsigned testSize, unsigned* p_label) {
   for (unsigned i = 0, I = 0; i < testSize; ++i, I += feature_count) {
     p_label[i] = root->predictOne(feature + I);
   }
 }
-
+/*
 signed main() {
   metaData* metaData;
   read_config(metaData, "data/adult.myc");
-  
+
   float* h_feature = (float*)malloc(metaData->sample_count * metaData->feature_count * sizeof(float));
   unsigned* h_label = (unsigned*)malloc(metaData->sample_count * sizeof(unsigned));
   getfeat_and_label(h_feature, h_label, *metaData, read_csv("data/adult.csv"));
-  
+
   unsigned trainSize(metaData->sample_count * 0.8), testSize(metaData->sample_count - trainSize);
-  
+
   unsigned long long TimeBegin = clock(), TimeEnd;
-  decisionTreeClassifier dtc(trainSize, metaData->feature_count, 
+  decisionTreeClassifier dtc(trainSize, metaData->feature_count,
     metaData->features_meta[metaData->feature_count].stringSet.size(), 5, h_feature, h_label);
   TimeEnd = clock();
   printf("fit %u Time %f ms\n", trainSize, (TimeEnd - TimeBegin) / 1000.0f);
 
   float* test_feature = h_feature + trainSize * metaData->feature_count;
   unsigned* test_label = h_label + trainSize;
-  unsigned* test_predict; 
+  unsigned* test_predict;
 
   TimeBegin = clock();
   dtc.predict(test_feature, testSize, test_predict);
@@ -131,9 +150,10 @@ signed main() {
 
   unsigned Loss = 0;
   for (unsigned i = 0; i < testSize; ++i) {
-    if(test_label[i] != test_predict[i]) ++Loss;
+    if (test_label[i] != test_predict[i]) ++Loss;
   }
   printf("Loss %f\n", (float)Loss / testSize);
 
   return 0;
 }
+  */
