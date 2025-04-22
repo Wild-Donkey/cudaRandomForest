@@ -14,9 +14,10 @@ randomForestClassifier::~randomForestClassifier() {
   for (unsigned i = 0; i < n_trees; ++i) {
     trees[i].~decisionTreeClassifier();
   }
-  trees.clear();
+  free(trees);
 }
-void randomForestClassifier::fit(float* features, unsigned* labels, unsigned sample_count_, unsigned feature_count_, unsigned class_count_) {
+void randomForestClassifier::fit(float* features, unsigned* labels, unsigned sample_count_,
+  unsigned feature_count_, unsigned class_count_) {
   sample_count = sample_count_;
   feature_count = feature_count_;
   class_count = class_count_;
@@ -32,14 +33,23 @@ void randomForestClassifier::fit(float* features, unsigned* labels) {
   randomSampling4Bytes(features, labels, dst_feature, dst_label, ori_feature_index,
     sample_count, feature_count, sample_per_tree, feature_per_tree, n_trees);
 
+  printf("Bagged %u for %u * %u\n", sample_count, sample_per_tree, n_trees);
+
+
+  trees = (decisionTreeClassifier*)malloc(n_trees * sizeof(decisionTreeClassifier));
   for (unsigned i = 0; i < n_trees; ++i) {
-    trees.push_back(decisionTreeClassifier(sample_per_tree, feature_per_tree, class_count, min_samples_split,
-      ((float**)dst_feature)[i], ((unsigned**)dst_label)[i], ori_feature_index[i]));
+    new (&trees[i]) decisionTreeClassifier(
+      sample_per_tree, feature_count, feature_per_tree,
+      class_count, min_samples_split,
+      (float*)dst_feature[i], (unsigned*)dst_label[i], ori_feature_index[i]
+    );
+    std::cout << "deCfit " << i << std::endl;
     free(dst_feature[i]);
     free(dst_label[i]);
   }
   free(dst_feature);
   free(dst_label);
+  free(ori_feature_index);
 }
 void randomForestClassifier::predict(float* features, unsigned* predictions, unsigned sample_count) {
   unsigned* pre_per_tree = (unsigned*)malloc(sample_count * n_trees * sizeof(unsigned));
@@ -58,6 +68,7 @@ void randomForestClassifier::predict(float* features, unsigned* predictions, uns
     predictions[i] = max;
   }
   free(pre_per_tree);
+  free(Hist);
 }
 
 signed main() {
@@ -74,7 +85,8 @@ signed main() {
 
   unsigned long long TimeBegin = clock(), TimeEnd;
   randomForestClassifier RFC(metaData->class_count, 5, 10);
-  RFC.fit(train_feature, train_label);
+  printf("Hello\n");
+  RFC.fit(train_feature, train_label, trainSize, metaData->feature_count, metaData->class_count);
   TimeEnd = clock();
   printf("fit %u Time %f ms\n", trainSize, (TimeEnd - TimeBegin) / 1000.0f);
 
@@ -92,6 +104,9 @@ signed main() {
     if (test_label[i] != test_predict[i]) ++Loss;
   }
   printf("Loss %f\n", (float)Loss / testSize);
-
+  delete metaData;
+  free(h_feature);
+  free(h_label);
+  free(test_predict);
   return 0;
 }

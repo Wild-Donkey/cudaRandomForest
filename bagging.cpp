@@ -39,21 +39,21 @@ void randomSampling4Bytes(void* src_feature, void* src_label, void**& dst_featur
   unsigned**& ori_feature_index, unsigned src_size, unsigned src_dim, unsigned dst_size,
   unsigned dst_dim, unsigned dst_count) {
   srand(time(NULL));
-  ori_feature_index = (unsigned**)malloc(dst_dim * sizeof(unsigned*));
+  ori_feature_index = (unsigned**)malloc(dst_count * sizeof(unsigned*));
   dst_feature = (void**)malloc(dst_count * sizeof(void*));
   dst_label = (void**)malloc(dst_count * sizeof(void*));
-  unsigned* indexx = (unsigned*)malloc(dst_size * sizeof(int));
+  unsigned* indexx = (unsigned*)malloc(dst_size * sizeof(unsigned));
   for (unsigned i = 0; i < dst_count; ++i) {
     ori_feature_index[i] = (unsigned*)malloc(dst_dim * sizeof(unsigned));
-    dst_feature[i] = malloc(dst_size * dst_dim * 4);
-    dst_label[i] = malloc(dst_size * 4);
+    dst_feature[i] = malloc(dst_size * dst_dim * sizeof(float));
+    dst_label[i] = malloc(dst_size * sizeof(unsigned));
     for (unsigned j = 0; j < dst_size; ++j) indexx[j] = rand() % src_size;
     for (unsigned j = 0; j < dst_dim; ++j) ori_feature_index[i][j] = rand() % src_dim;
     for (unsigned j = 0, J = 0; j < dst_size; ++j, J += dst_dim) {
-      ((uint32_t*)dst_label[i])[j] = ((uint32_t*)src_label)[indexx[j]];
+      ((unsigned*)dst_label[i])[j] = ((unsigned*)src_label)[indexx[j]];
       indexx[j] *= src_dim;
       for (unsigned k = 0, K = J; k < dst_dim; ++k, ++K)
-        ((uint32_t*)dst_feature[i])[K] = ((uint32_t*)src_feature)[indexx[j] + ori_feature_index[i][k]];
+        ((float*)dst_feature[i])[K] = ((float*)src_feature)[indexx[j] + ori_feature_index[i][k]];
     }
   }
   free(indexx);
