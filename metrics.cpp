@@ -3,6 +3,7 @@
 #include <ctime>
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 #include "metrics.hpp"
 
 void computeHistogram(unsigned* label, unsigned*& hist, unsigned sample_count, unsigned class_count) {
@@ -31,7 +32,8 @@ float computeEntropy(unsigned* label, unsigned sample_count, unsigned class_coun
 }
 
 std::pair<float, float> informationGain(float* feature, unsigned* label, unsigned sample_count, unsigned class_count) {
-  if (sample_count == 0) return { 0.0f, 0.0f };
+  // std::cout << "Information Gain " << sample_count << std::endl;
+  if (sample_count <= 1) return { 0.0f, 0.0f };
 
   float entropy, entropy_y, splitPoint;
   float entropy_l, entropy_r;
@@ -47,6 +49,8 @@ std::pair<float, float> informationGain(float* feature, unsigned* label, unsigne
   entropy_l = 0;
   entropy_y = entropy_l + entropy_r;
   splitPoint = f_l[0].first - 0.001f;
+
+  // std::cout << "L " << histl << " R " << histr << std::endl;
 
   // unsigned LeftCnt = 0, RightCnt = sample_count;
   // unsigned BL = 0, BR = RightCnt;
@@ -66,13 +70,18 @@ std::pair<float, float> informationGain(float* feature, unsigned* label, unsigne
       // BL = LeftCnt, BR = RightCnt;
     }
   }
+  // std::cout << "Free " << f_l << " " << histl << " " << histr << std::endl;
+  free(f_l);
+  free(histl);
+  free(histr);
   // printf("Best L %u R %u\n", BL, BR);
   return { entropy - entropy_y, splitPoint };
 }
-std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label,
-  unsigned sample_count, unsigned dataDim, unsigned class_count) {
-  if (sample_count == 0) return { 0, 0 };
-
+std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label, unsigned sample_count,
+  unsigned dataDim, unsigned class_count) {
+  // std::cout << "Find Best Feature " << sample_count << " " << dataDim << std::endl;
+  if (sample_count <= 1) return { 0, 0 };
+  // std::cout << "Not emptyBest Feature " << std::endl;
   float maxIG = -0.01f;
   float splitPoint = 0.0f;
   unsigned bestFeature = 0;
@@ -82,13 +91,15 @@ std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label,
     for (unsigned j = 0, J = i; j < sample_count; ++j, J += dataDim)
       featureColumn[j] = feature[J];
     std::pair<float, float> IGp = informationGain(featureColumn, label, sample_count, class_count);
-    // printf("Feature %u IG %f Split %f\n", i, IGp.first, IGp.second);
+    // printf("Feature %u IG %f Split %f\n", I, IGp.first, IGp.second);
     if (IGp.first > maxIG) {
       maxIG = IGp.first;
       splitPoint = IGp.second;
       bestFeature = i;
     }
   }
+  // std::cout << "Best Feature " << bestFeature << " Split " << splitPoint << std::endl;
+  free(featureColumn);
   return { bestFeature, splitPoint };
 }
 
