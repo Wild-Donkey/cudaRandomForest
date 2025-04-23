@@ -1,4 +1,4 @@
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import numpy as np
@@ -27,7 +27,7 @@ train_label = labels[0:train_size]
 test_feature = features[train_size : features.shape[0]]
 test_label = labels[train_size : features.shape[0]]
 
-Clf = DecisionTreeClassifier()
+Clf = RandomForestClassifier()
 
 Start = datetime.datetime.now().timestamp()
 Clf.fit(train_feature, train_label.reshape(-1))
