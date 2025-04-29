@@ -39,6 +39,15 @@ float variance(float* label, unsigned sample_count) {
   Sum /= sample_count;
   return SqSum / sample_count - Sum * Sum;
 }
+std::pair<float, float> variance_sum(float* label, unsigned sample_count) {
+  float Sum = 0, SqSum = 0;
+  for (unsigned i = 0; i < sample_count; ++i) {
+    Sum += label[i];
+    SqSum += label[i] * label[i];
+  }
+  Sum /= sample_count;
+  return { SqSum / sample_count - Sum * Sum, Sum * sample_count };
+}
 float variance(unsigned size, float Sum, float Sum2) {
   Sum /= size;
   return Sum2 / size - Sum * Sum;

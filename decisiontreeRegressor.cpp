@@ -18,40 +18,28 @@ regressorNode::~regressorNode() {
   if (right) delete right, right = NULL;
 }
 void regressorNode::fit(float* feature, float* label,
-  unsigned sample_count, unsigned sample_dim, unsigned class_count, unsigned min_samples_split) {
+  unsigned sample_count, unsigned sample_dim, unsigned min_samples_split) {
 
-  vote_class = 0;
-  for (unsigned i = 0; i < class_count; ++i)
-    if (hist[i] > hist[vote_class]) vote_class = i;
-  unsigned vote = hist[vote_class];
-  // std::cout << "HistPost" << std::endl;
-  free(hist);
-  // std::cout << "Freed" << std::endl;
+  auto Var_Sum = variance_sum(label, sample_count);
+  ySum = Var_Sum.second;
+  float Var = Var_Sum.first;
 
-  // printf("Compute Histogram %u\n", vote);
-
-  if (vote / sample_count > 0.90f || sample_count < min_samples_split) {
+  if (Var <= ySum * 0.01 / sample_count || sample_count < min_samples_split) {
     left = right = NULL;
     return;
   }
 
-  // std::cout << "herePreBest" << std::endl;
-  auto best = findBestFeature(feature, label, sample_count, sample_dim, class_count);
-  // std::cout << "herePostBest" << std::endl;
+  auto best = findBestFeature(feature, label, sample_count, sample_dim);
   best_feature = best.first;
   splitPoint = best.second;
 
-  // std::cout << "here bested" << std::endl;
-  // std::cout << "Cnt" << sample_count << "Fea" << sample_dim << std::endl;
-
   float* downFeature = (float*)malloc(sample_count * sample_dim * sizeof(float));
-  unsigned* downLabel = (unsigned*)malloc(sample_count * sizeof(unsigned));
-  // std::cout << "here Downed" << std::endl;
+  float* downLabel = (float*)malloc(sample_count * sizeof(float));
 
   float* rightFeature = downFeature + sample_count * sample_dim;
   float* leftFeature = downFeature;
-  unsigned* rightLabel = downLabel + sample_count;
-  unsigned* leftLabel = downLabel;
+  float* rightLabel = downLabel + sample_count;
+  float* leftLabel = downLabel;
 
   for (unsigned i = 0, I = 0, Id = best_feature; i < sample_count; ++i, I += sample_dim, Id += sample_dim) {
     if (feature[Id] <= splitPoint) {
@@ -67,34 +55,26 @@ void regressorNode::fit(float* feature, float* label,
 
   unsigned leftCount = leftLabel - downLabel;
   unsigned rightCount = sample_count - leftCount;
-  // printf("Left %u Right %u\n", leftCount, rightCount);
   if (leftCount == 0 || rightCount == 0) {
     left = right = NULL;
-    // printf("Free %p %p\n", downFeature, downLabel);
-    // std::cout << "here" << std::endl;
     free(downFeature);
     free(downLabel);
-    // std::cout << "Freed" << std::endl;
     return;
   }
 
   leftLabel -= leftCount;
   leftFeature -= leftCount * sample_dim;
 
-  left = new(classifierNode);
-  right = new(classifierNode);
-  // printf("Node %p left %p right %p\n", this, left, right);
-  left->fit(leftFeature, leftLabel, leftCount, sample_dim, class_count, min_samples_split);
-  right->fit(rightFeature, rightLabel, rightCount, sample_dim, class_count, min_samples_split);
-  // printf("Free %p %p\n", downFeature, downLabel);
-  // std::cout << "PreFree" << std::endl;
+  left = new(regressorNode);
+  right = new(regressorNode);
+  left->fit(leftFeature, leftLabel, leftCount, sample_dim, min_samples_split);
+  right->fit(rightFeature, rightLabel, rightCount, sample_dim, min_samples_split);
   free(downFeature);
   free(downLabel);
-  // std::cout << "Freed" << std::endl;
 }
 
-unsigned classifierNode::predictOne(float* feature, unsigned* ori_feature_index) {
-  if (!left) return vote_class;
+float regressorNode::predictOne(float* feature, unsigned* ori_feature_index) {
+  if (!left) return ySum / sample_count;
   unsigned BestIndex = ori_feature_index == NULL ? best_feature : ori_feature_index[best_feature];
   if (feature[BestIndex] <= splitPoint) {
     return left->predictOne(feature, ori_feature_index);
@@ -102,25 +82,25 @@ unsigned classifierNode::predictOne(float* feature, unsigned* ori_feature_index)
 }
 
 
-decisionTreeClassifier::decisionTreeClassifier() { root = NULL; }
-decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count, unsigned feature_used,
-  unsigned class_count, unsigned min_samples_split) : sample_count(sample_count), feature_count(feature_count),
-  feature_used(feature_used), class_count(class_count), min_samples_split(min_samples_split) {
+decisionTreeRegressor::decisionTreeRegressor() { root = NULL; }
+decisionTreeRegressor::decisionTreeRegressor(unsigned sample_count, unsigned feature_count, unsigned feature_used,
+  unsigned min_samples_split) : sample_count(sample_count), feature_count(feature_count),
+  feature_used(feature_used), min_samples_split(min_samples_split) {
   root = NULL;
 }
-decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count,
-  unsigned class_count, unsigned min_samples_split, float* feature, unsigned* label) :
-  sample_count(sample_count), feature_count(feature_count), feature_used(feature_used), class_count(class_count),
+decisionTreeRegressor::decisionTreeRegressor(unsigned sample_count, unsigned feature_count,
+  unsigned min_samples_split, float* feature, float* label) :
+  sample_count(sample_count), feature_count(feature_count), feature_used(feature_used),
   min_samples_split(min_samples_split) {
   fit(feature, label);
 }
-decisionTreeClassifier::decisionTreeClassifier(unsigned sample_count, unsigned feature_count, unsigned feature_used,
-  unsigned class_count, unsigned min_samples_split, float* feature, unsigned* label, unsigned* ori_feature_index) :
-  sample_count(sample_count), feature_count(feature_count), feature_used(feature_used), class_count(class_count),
+decisionTreeRegressor::decisionTreeRegressor(unsigned sample_count, unsigned feature_count, unsigned feature_used,
+  unsigned min_samples_split, float* feature, float* label, unsigned* ori_feature_index) :
+  sample_count(sample_count), feature_count(feature_count), feature_used(feature_used),
   min_samples_split(min_samples_split), ori_feature_index(ori_feature_index) {
   fit(feature, label);
 }
-decisionTreeClassifier::~decisionTreeClassifier() {
+decisionTreeRegressor::~decisionTreeRegressor() {
   // printf("Over For this Tree\n");
   if (root) {
     delete root;
@@ -131,18 +111,18 @@ decisionTreeClassifier::~decisionTreeClassifier() {
     ori_feature_index = NULL;
   }
 }
-void decisionTreeClassifier::Print() {
+void decisionTreeRegressor::Print() {
   printf("decisionTreeClassifier: Root %p\n", root);
-  printf("sample_count %u, feature_count %u, class_count %u\n", sample_count, feature_count, class_count);
+  printf("sample_count %u, feature_count %u, class_count %u\n", sample_count, feature_count);
 }
-void decisionTreeClassifier::fit(float* feature, unsigned* label) {
+void decisionTreeRegressor::fit(float* feature, float* label) {
   printf("Fit\n");
   Print();
-  root = new(classifierNode);
-  root->fit(feature, label, sample_count, feature_used, class_count, min_samples_split);
+  root = new(regressorNode);
+  root->fit(feature, label, sample_count, feature_used, min_samples_split);
   std::cout << "Fit Done" << std::endl;
 }
-void decisionTreeClassifier::predict(float* feature, unsigned testSize, unsigned* p_label) {
+void decisionTreeRegressor::predict(float* feature, unsigned testSize, float* p_label) {
   for (unsigned i = 0, I = 0; i < testSize; ++i, I += feature_count) {
     p_label[i] = root->predictOne(feature + I, ori_feature_index);
   }

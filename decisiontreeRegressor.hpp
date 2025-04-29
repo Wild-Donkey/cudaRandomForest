@@ -12,11 +12,11 @@ public:
   ~regressorNode();
   void fit(float* feature, float* label, unsigned sample_count, unsigned sample_dim,
     unsigned min_samples_split);
-  unsigned predictOne(float* feature, unsigned* ori_feature_index = NULL);
+  float predictOne(float* feature, unsigned* ori_feature_index = NULL);
 private:
   regressorNode* left, * right;
   unsigned sample_count, sample_dim, min_samples_split = 5;
-  unsigned vote_class, best_feature;
+  unsigned best_feature;
   float splitPoint, ySum;
 };
 
