@@ -30,7 +30,19 @@ float computeEntropy(unsigned* label, unsigned sample_count, unsigned class_coun
   free(hist);
   return entropy;
 }
-
+float variance(float* label, unsigned sample_count) {
+  float Sum = 0, SqSum = 0;
+  for (unsigned i = 0; i < sample_count; ++i) {
+    Sum += label[i];
+    SqSum += label[i] * label[i];
+  }
+  Sum /= sample_count;
+  return SqSum / sample_count - Sum * Sum;
+}
+float variance(unsigned size, float Sum, float Sum2) {
+  Sum /= size;
+  return Sum2 / size - Sum * Sum;
+}
 std::pair<float, float> informationGain(float* feature, unsigned* label, unsigned sample_count, unsigned class_count) {
   // std::cout << "Information Gain " << sample_count << std::endl;
   if (sample_count <= 1) return { 0.0f, 0.0f };
@@ -100,6 +112,44 @@ std::pair<unsigned, float> findBestFeature(float* feature, unsigned* label, unsi
   }
   // std::cout << "Best Feature " << bestFeature << " Split " << splitPoint << std::endl;
   free(featureColumn);
+  return { bestFeature, splitPoint };
+}
+std::pair<unsigned, float> findBestFeature(float* feature, float* label, unsigned sample_count,
+  unsigned dataDim) {
+  if (sample_count <= 1) return { 0, 0 };
+  float minV = 1e30f;
+  float splitPoint = 0.0f;
+  unsigned bestFeature = 0;
+  std::pair<float, float>* featureColumn = (std::pair<float, float>*)malloc(sample_count * sizeof(std::pair<float, float>));
+  float* PreSum = (float*)malloc(sample_count * sizeof(float));
+  float* PreSum2 = (float*)malloc(sample_count * sizeof(float));
+
+  for (unsigned i = 0; i < dataDim; ++i) {
+    for (unsigned j = 0, J = i; j < sample_count; ++j, J += dataDim)
+      featureColumn[j] = { feature[J], label[j] };
+    sort(featureColumn, featureColumn + sample_count);
+    PreSum[0] = featureColumn[0].second;
+    PreSum2[0] = featureColumn[0].second * featureColumn[0].second;
+    for (unsigned j = 1; j < sample_count; ++j) {
+      PreSum[j] = PreSum[j - 1] + featureColumn[j].second;
+      PreSum2[j] = PreSum2[j - 1] + featureColumn[j].second * featureColumn[j].second;
+    }
+    float RSum = 0, RSum2 = 0, NewV;
+    for (unsigned j = sample_count - 1; j; --j) {
+      RSum += featureColumn[j].second;
+      RSum2 += featureColumn[j].second * featureColumn[j].second;
+      NewV = variance(j, PreSum[j], PreSum2[j]) + variance(sample_count - j, RSum, RSum2);
+      if (NewV < minV) {
+        minV = NewV;
+        splitPoint = (featureColumn[j].first + featureColumn[j - 1].first) / 2.0f;
+        bestFeature = i;
+      }
+    }
+  }
+  // std::cout << "Best Feature " << bestFeature << " Split " << splitPoint << std::endl;
+  free(featureColumn);
+  free(PreSum);
+  free(PreSum2);
   return { bestFeature, splitPoint };
 }
 

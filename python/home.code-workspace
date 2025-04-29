@@ -1,9 +1,9 @@
 {
-	"folders": [
-		{
-			"path": "../../.."
-		}
-	],
+  "folders": [
+    {
+      "path": "../../.."
+    }
+  ],
   "settings": {
     "files.associations": {
       "array": "cpp",
@@ -86,7 +86,21 @@
       "valarray": "cpp",
       "__nullptr": "cpp",
       "ios": "cpp",
-      "locale": "cpp"
+      "locale": "cpp",
+      "csetjmp": "cpp",
+      "any": "cpp",
+      "strstream": "cpp",
+      "barrier": "cpp",
+      "coroutine": "cpp",
+      "cuchar": "cpp",
+      "expected": "cpp",
+      "latch": "cpp",
+      "ranges": "cpp",
+      "scoped_allocator": "cpp",
+      "spanstream": "cpp",
+      "stacktrace": "cpp",
+      "syncstream": "cpp",
+      "stdfloat": "cpp"
     }
   }
 }
