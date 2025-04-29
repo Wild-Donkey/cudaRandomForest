@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "metrics.hpp"
+#include <cstddef>
 
 class classifierNode {
 public:
