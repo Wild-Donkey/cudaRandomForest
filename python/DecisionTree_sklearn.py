@@ -1,10 +1,11 @@
 from joblib import Parallel, delayed
-from sklearn.ensemble import RandomForestRegressor
-from random_forest import PyRandomForestClassifier as RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import numpy as np
 import datetime
+
+dataset = "adult"
 
 def process_column(i, train_data, test_data, data_encoders, train_size, test_size):
   train_label = train_data.iloc[:, i]
@@ -17,27 +18,31 @@ def process_column(i, train_data, test_data, data_encoders, train_size, test_siz
   print("train_label shape", train_label.shape)
 
   if train_data.columns[i] in data_encoders.keys():
-      model = RandomForestClassifier()
+      model = DecisionTreeClassifier()
   else:
-      model = RandomForestRegressor()
+      model = DecisionTreeRegressor()
 
   # 训练模型
   start = datetime.datetime.now().timestamp()
   print("feat Shape", train_feature.shape)
   print("label Shape", train_label.shape)
-  model.fit(train_feature.to_numpy(), train_label.to_numpy())
+  model.fit(train_feature, train_label)
   end = datetime.datetime.now().timestamp()
   print(f"Fit: {train_size}, Time: {end - start}s")
 
   # 预测
   start = datetime.datetime.now().timestamp()
-  test_predict = model.predict(test_feature.to_numpy())
+  test_predict = model.predict(test_feature)
   end = datetime.datetime.now().timestamp()
   print(f"Predict: {test_size}, Time: {end - start}s")
 
   # 计算损失
-  loss = np.mean(np.square(test_predict - test_label))
-  print("Loss", loss)
+  if train_data.columns[i] in data_encoders.keys():
+    wrong = np.mean(test_predict != test_label)
+    print(i, "wrong", wrong)
+  else :
+    loss = np.mean(np.square(test_predict - test_label))
+    print(i, "MSL", loss)
 
   # 处理分类结果
   if train_data.columns[i] in data_encoders.keys():
@@ -52,7 +57,7 @@ def process_column(i, train_data, test_data, data_encoders, train_size, test_siz
 if __name__ == '__main__':
   # 假设这些变量已经定义
   # data, train_data, test_data, data_encoders, train_size, test_size, df
-  data = pd.read_csv('../data/adult.csv')
+  data = pd.read_csv('../data/' + dataset + '.csv')
   data_encoders = {}
   for column in data.select_dtypes(include=['object']).columns:
     le = LabelEncoder()
@@ -67,15 +72,10 @@ if __name__ == '__main__':
 
   df = pd.DataFrame()
   OverallS = datetime.datetime.now().timestamp()
-  
   results = Parallel(n_jobs=-1, verbose=10)(
       delayed(process_column)(i, train_data, test_data, data_encoders, train_size, test_size)
       for i in range(train_data.shape[1])
   )
-
-  # results = []
-  # for i in range(train_data.shape[1]): 
-    # results.append(process_column(i, train_data, test_data, data_encoders, train_size, test_size))
   
   # 将结果存入df
   for col_name, pred in results:
@@ -83,4 +83,4 @@ if __name__ == '__main__':
           
   OverallEnd = datetime.datetime.now().timestamp()
   print("Overall Time:" + str(OverallEnd - OverallS) + "s")
-  df.to_csv('../data/adult_predict.csv', index = False)
+  df.to_csv('../data/' + dataset + '_sk_predict.csv', index = False)

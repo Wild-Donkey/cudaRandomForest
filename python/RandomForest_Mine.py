@@ -1,5 +1,6 @@
 from joblib import Parallel, delayed
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from random_forest import PyRandomForestClassifier as RandomForestClassifier
+from random_forest import PyRandomForestRegressor as RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import numpy as np
@@ -26,13 +27,13 @@ def process_column(i, train_data, test_data, data_encoders, train_size, test_siz
   start = datetime.datetime.now().timestamp()
   print("feat Shape", train_feature.shape)
   print("label Shape", train_label.shape)
-  model.fit(train_feature, train_label)
+  model.fit(train_feature.to_numpy(), train_label.to_numpy())
   end = datetime.datetime.now().timestamp()
   print(f"Fit: {train_size}, Time: {end - start}s")
 
   # 预测
   start = datetime.datetime.now().timestamp()
-  test_predict = model.predict(test_feature)
+  test_predict = model.predict(test_feature.to_numpy())
   end = datetime.datetime.now().timestamp()
   print(f"Predict: {test_size}, Time: {end - start}s")
 
@@ -72,10 +73,15 @@ if __name__ == '__main__':
 
   df = pd.DataFrame()
   OverallS = datetime.datetime.now().timestamp()
+  
   results = Parallel(n_jobs=-1, verbose=10)(
       delayed(process_column)(i, train_data, test_data, data_encoders, train_size, test_size)
       for i in range(train_data.shape[1])
   )
+
+  # results = []
+  # for i in range(train_data.shape[1]): 
+  # results.append(process_column(0, train_data, test_data, data_encoders, train_size, test_size))
   
   # 将结果存入df
   for col_name, pred in results:

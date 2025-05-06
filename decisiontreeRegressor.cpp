@@ -1,6 +1,6 @@
 #include "decisiontreeRegressor.hpp"
 #include "metrics.hpp" 
-// #include "dataReader.hpp"
+#include "dataReader.hpp"
 
 #include <stdio.h>
 #include <malloc.h>
@@ -20,11 +20,14 @@ regressorNode::~regressorNode() {
 void regressorNode::fit(float* feature, float* label,
   unsigned sample_count, unsigned sample_dim, unsigned min_samples_split) {
 
+  this->sample_count = sample_count;
+  this->min_samples_split = min_samples_split;
+  this->sample_dim = sample_dim;
   auto Var_Sum = variance_sum(label, sample_count);
   ySum = Var_Sum.second;
   float Var = Var_Sum.first;
-
-  if (Var <= ySum * 0.01 / sample_count || sample_count < min_samples_split) {
+  // printf("Var %f Mean %f n %u min %u\n", Var, ySum / sample_count, sample_count, min_samples_split);
+  if (Var <= ySum * 0.001 / sample_count || sample_count < min_samples_split) {
     left = right = NULL;
     return;
   }
@@ -74,8 +77,10 @@ void regressorNode::fit(float* feature, float* label,
 }
 
 float regressorNode::predictOne(float* feature, unsigned* ori_feature_index) {
+  // printf("Predict One %u %u %f\n", sample_count, min_samples_split, ySum / sample_count);
   if (!left) return ySum / sample_count;
   unsigned BestIndex = ori_feature_index == NULL ? best_feature : ori_feature_index[best_feature];
+  // std::cout << "bestIndex " << BestIndex << " splitPoint " << splitPoint << std::endl;
   if (feature[BestIndex] <= splitPoint) {
     return left->predictOne(feature, ori_feature_index);
   } else return right->predictOne(feature, ori_feature_index);
@@ -90,8 +95,10 @@ decisionTreeRegressor::decisionTreeRegressor(unsigned sample_count, unsigned fea
 }
 decisionTreeRegressor::decisionTreeRegressor(unsigned sample_count, unsigned feature_count,
   unsigned min_samples_split, float* feature, float* label) :
-  sample_count(sample_count), feature_count(feature_count), feature_used(feature_used),
+  sample_count(sample_count), feature_count(feature_count),
   min_samples_split(min_samples_split) {
+  feature_used = feature_count;
+  // std::cout << "sample_count " << sample_count << " feature_count " << feature_count << std::endl;
   fit(feature, label);
 }
 decisionTreeRegressor::decisionTreeRegressor(unsigned sample_count, unsigned feature_count, unsigned feature_used,
@@ -112,53 +119,85 @@ decisionTreeRegressor::~decisionTreeRegressor() {
   }
 }
 void decisionTreeRegressor::Print() {
-  printf("decisionTreeClassifier: Root %p\n", root);
-  printf("sample_count %u, feature_count %u, class_count %u\n", sample_count, feature_count);
+  printf("decisionTreeRegressor: Root %p\n", root);
+  printf("sample_count %u, feature_count %u\n", sample_count, feature_count);
 }
 void decisionTreeRegressor::fit(float* feature, float* label) {
-  printf("Fit\n");
-  Print();
+  // std::cout << "Fit" << std::endl;
   root = new(regressorNode);
   root->fit(feature, label, sample_count, feature_used, min_samples_split);
-  std::cout << "Fit Done" << std::endl;
+  // Print();
+  // std::cout << "Fit Done" << std::endl;
 }
 void decisionTreeRegressor::predict(float* feature, unsigned testSize, float* p_label) {
   for (unsigned i = 0, I = 0; i < testSize; ++i, I += feature_count) {
     p_label[i] = root->predictOne(feature + I, ori_feature_index);
   }
 }
-/*
 signed main() {
   metaData* metaData;
   read_config(metaData, "data/adult.myc");
-
-  float* h_feature = (float*)malloc(metaData->sample_count * metaData->feature_count * sizeof(float));
-  unsigned* h_label = (unsigned*)malloc(metaData->sample_count * sizeof(unsigned));
-  getfeat_and_label(h_feature, h_label, *metaData, read_csv("data/adult.csv"));
+  // std::cout << "Samples " << metaData->sample_count << " Features " << metaData->feature_count << std::endl;
+  float* h_data = (float*)malloc(metaData->sample_count * metaData->feature_count * sizeof(float));
+  bool* is_category_feature = (bool*)malloc(metaData->feature_count * sizeof(bool));
+  get_data(h_data, is_category_feature, *metaData, read_csv("data/adult.csv"));
 
   unsigned trainSize(metaData->sample_count * 0.8), testSize(metaData->sample_count - trainSize);
 
-  unsigned long long TimeBegin = clock(), TimeEnd;
-  decisionTreeClassifier dtc(trainSize, metaData->feature_count,
-    metaData->features_meta[metaData->feature_count].stringSet.size(), 5, h_feature, h_label);
-  TimeEnd = clock();
-  printf("fit %u Time %f ms\n", trainSize, (TimeEnd - TimeBegin) / 1000.0f);
+  float* train_data = h_data;
+  float* test_data = h_data + (trainSize * metaData->feature_count);
 
-  float* test_feature = h_feature + trainSize * metaData->feature_count;
-  unsigned* test_label = h_label + trainSize;
-  unsigned* test_predict;
+  for (unsigned i = 0; i < metaData->feature_count; ++i) if (!is_category_feature[i]) {
+    float* trainX = (float*)malloc(trainSize * (metaData->feature_count - 1) * sizeof(float));
+    float* trainY = (float*)malloc(trainSize * sizeof(float));
+    for (unsigned j = 0, J = 0, JJ = 0; j < trainSize; ++j, J += metaData->feature_count - 1, JJ += metaData->feature_count) {
+      if (i) memcpy(trainX + J, train_data + JJ, i);
+      if (metaData->feature_count - 1 != i) memcpy(trainX + J + i, train_data + JJ + i + 1, metaData->feature_count - i - 1);
+      trainY[j] = train_data[JJ + i];
+    }
+    // std::cout << "Samples " << metaData->sample_count << " Features " << metaData->feature_count << std::endl;
+    unsigned long long TimeBegin = clock(), TimeEnd;
+    decisionTreeRegressor dtc(trainSize, metaData->feature_count - 1, 2, trainX, trainY);
+    TimeEnd = clock();
+    printf("fit %u Time %f ms\n", trainSize, (TimeEnd - TimeBegin) / 1000.0f);
 
-  TimeBegin = clock();
-  dtc.predict(test_feature, testSize, test_predict);
-  TimeEnd = clock();
-  printf("predict %u Time %f ms\n", testSize, (TimeEnd - TimeBegin) / 1000.0f);
 
-  unsigned Loss = 0;
-  for (unsigned i = 0; i < testSize; ++i) {
-    if (test_label[i] != test_predict[i]) ++Loss;
+    float* testX = (float*)malloc(testSize * (metaData->feature_count - 1) * sizeof(float));
+    float* testY = (float*)malloc(testSize * sizeof(float));
+    float* test_predict = (float*)malloc(testSize * sizeof(float));
+
+    for (unsigned j = 0, J = 0, JJ = 0; j < testSize; ++j, J += metaData->feature_count - 1, JJ += metaData->feature_count) {
+      if (i) memcpy(testX + J, test_data + JJ, i);
+      if (metaData->feature_count - 1 != i) memcpy(testX + J + i, test_data + JJ + i + 1, metaData->feature_count - i - 1);
+      testY[j] = test_data[JJ + i];
+    }
+
+    TimeBegin = clock();
+    dtc.predict(testX, testSize, test_predict);
+    TimeEnd = clock();
+    printf("predict %u Time %f ms\n", testSize, (TimeEnd - TimeBegin) / 1000.0f);
+    for (unsigned i = 0; i < 20; ++i)
+      printf("%f ", test_predict[i]);
+    putchar(0x0A);
+    for (unsigned i = 0; i < 20; ++i)
+      printf("%f ", testY[i]);
+    putchar(0x0A);
+
+    float Loss = 0;
+    for (unsigned i = 0; i < testSize; ++i) {
+      float Delt = testY[i] - test_predict[i];
+      Loss += Delt * Delt;
+    }
+    printf("MSE %f\n", Loss / testSize);
+    free(trainX);
+    free(trainY);
+    free(testX);
+    free(testY);
+    free(test_predict);
+    // break;
   }
-  printf("Loss %f\n", (float)Loss / testSize);
-
+  free(h_data);
+  free(is_category_feature);
+  delete metaData;
   return 0;
 }
-  */

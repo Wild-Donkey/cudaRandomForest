@@ -48,9 +48,8 @@ std::pair<float, float> variance_sum(float* label, unsigned sample_count) {
   Sum /= sample_count;
   return { SqSum / sample_count - Sum * Sum, Sum * sample_count };
 }
-float variance(unsigned size, float Sum, float Sum2) {
-  Sum /= size;
-  return Sum2 / size - Sum * Sum;
+float variancen(unsigned size, float Sum, float Sum2) {
+  return Sum2 - Sum * Sum / size;
 }
 std::pair<float, float> informationGain(float* feature, unsigned* label, unsigned sample_count, unsigned class_count) {
   // std::cout << "Information Gain " << sample_count << std::endl;
@@ -132,7 +131,7 @@ std::pair<unsigned, float> findBestFeature(float* feature, float* label, unsigne
   std::pair<float, float>* featureColumn = (std::pair<float, float>*)malloc(sample_count * sizeof(std::pair<float, float>));
   float* PreSum = (float*)malloc(sample_count * sizeof(float));
   float* PreSum2 = (float*)malloc(sample_count * sizeof(float));
-
+  // std::cout << "sample" << sample_count << " feature " << dataDim << std::endl;
   for (unsigned i = 0; i < dataDim; ++i) {
     for (unsigned j = 0, J = i; j < sample_count; ++j, J += dataDim)
       featureColumn[j] = { feature[J], label[j] };
@@ -145,15 +144,17 @@ std::pair<unsigned, float> findBestFeature(float* feature, float* label, unsigne
     }
     float RSum = 0, RSum2 = 0, NewV;
     for (unsigned j = sample_count - 1; j; --j) {
+      // printf("%f,%f ", featureColumn[j].first, featureColumn[j].second);
       RSum += featureColumn[j].second;
       RSum2 += featureColumn[j].second * featureColumn[j].second;
-      NewV = variance(j, PreSum[j], PreSum2[j]) + variance(sample_count - j, RSum, RSum2);
-      if (NewV < minV) {
+      NewV = variancen(j, PreSum[j - 1], PreSum2[j - 1]) + variancen(sample_count - j, RSum, RSum2);
+      if (featureColumn[j].first != featureColumn[j - 1].first && NewV < minV) {
         minV = NewV;
         splitPoint = (featureColumn[j].first + featureColumn[j - 1].first) / 2.0f;
         bestFeature = i;
       }
     }
+    // putchar(0x0A);
   }
   // std::cout << "Best Feature " << bestFeature << " Split " << splitPoint << std::endl;
   free(featureColumn);

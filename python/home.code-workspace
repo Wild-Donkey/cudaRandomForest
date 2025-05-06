@@ -100,7 +100,8 @@
       "spanstream": "cpp",
       "stacktrace": "cpp",
       "syncstream": "cpp",
-      "stdfloat": "cpp"
+      "stdfloat": "cpp",
+      "__split_buffer": "cpp"
     }
   }
 }

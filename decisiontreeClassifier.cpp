@@ -20,7 +20,10 @@ classifierNode::~classifierNode() {
 void classifierNode::fit(float* feature, unsigned* label,
   unsigned sample_count, unsigned sample_dim, unsigned class_count, unsigned min_samples_split) {
   // std::cout << "In" << std::endl;
-
+  this->sample_count = sample_count;
+  this->min_samples_split = min_samples_split;
+  this->sample_dim = sample_dim;
+  this->class_count = class_count;
   // printf("classifierNode::fit %p sample %u, dim %u, class %u\n", this, sample_count, sample_dim, class_count);
   unsigned* hist;
   // std::cout << "HistPre" << std::endl;
@@ -141,11 +144,11 @@ void decisionTreeClassifier::Print() {
   printf("sample_count %u, feature_count %u, class_count %u\n", sample_count, feature_count, class_count);
 }
 void decisionTreeClassifier::fit(float* feature, unsigned* label) {
-  printf("Fit\n");
-  Print();
+  // printf("Fit\n");
+  // Print();
   root = new(classifierNode);
   root->fit(feature, label, sample_count, feature_used, class_count, min_samples_split);
-  std::cout << "Fit Done" << std::endl;
+  // std::cout << "Fit Done" << std::endl;
 }
 void decisionTreeClassifier::predict(float* feature, unsigned testSize, unsigned* p_label) {
   for (unsigned i = 0, I = 0; i < testSize; ++i, I += feature_count) {

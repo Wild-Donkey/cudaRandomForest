@@ -7,7 +7,8 @@ ext = Extension(
     sources=["wrapper.pyx", "../randomForestClassifier.cpp",  "../decisiontreeClassifier.cpp",  "../bagging.cpp", 
     "../dataReader.cpp",  
     "../metrics.cpp",
-    "../randomForestRegressor.cpp"],
+    "../randomForestRegressor.cpp",
+    "../decisiontreeRegressor.cpp",],
     language="c++",
     include_dirs=[np.get_include()],  # 包含numpy头文件
     extra_compile_args=["-std=c++11"],  # 根据需要添加编译选项
@@ -19,3 +20,5 @@ setup(
     description="Python wrapper for RandomForest",
     ext_modules=cythonize(ext),
 )
+#  rm -rf build *.so *.cpp
+#  python setup.py build_ext --inplace --force
